@@ -1,0 +1,189 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "netcoredbg debug configuration",
+  "description": "C#/.NET debugging via netcoredbg. The launch/attach fields listed here are the ones netcoredbg's src/protocols/vscodeprotocol.cpp reads; `logging`, `launchSettingsProfile`, `launchSettingsFilePath`, `envFile`, `console`, and `pipeTransport` are consumed by this extension and stripped before forwarding. Any other field is forwarded verbatim and ignored by netcoredbg if it does not know it.",
+  "definitions": {
+    "sourceFileMap": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "vscode-csharp option, IGNORED by netcoredbg (it has no source file mapping; the key appears nowhere in its source). Accepted only so configurations copied from VS Code validate; forwarded verbatim without effect."
+    },
+    "console": {
+      "type": "string",
+      "enum": ["internalConsole"],
+      "default": "internalConsole",
+      "description": "Console mode for the debuggee. Only `internalConsole` is supported because netcoredbg does not implement DAP `runInTerminal` (no stdin/TTY). For interactive console apps, run the app from a Zed task or terminal and attach with `\"processId\": \"${ZED_PICK_PID}\"`."
+    },
+    "pipeTransport": {
+      "type": "object",
+      "required": ["pipeProgram", "debuggerPath"],
+      "additionalProperties": false,
+      "description": "Run `netcoredbg` inside a container or over an external transport command (e.g. `docker exec -i`). Consumed by this extension and stripped before forwarding; skips local binary lookup and local DOTNET_ROOT injection.",
+      "properties": {
+        "pipeProgram": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Local executable used to spawn the remote/containerized adapter (e.g. \"docker\", \"kubectl\", \"ssh\")."
+        },
+        "pipeArgs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Arguments passed to `pipeProgram` before `debuggerPath` (e.g. [\"exec\", \"-i\", \"my-container\"])."
+        },
+        "debuggerPath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to `netcoredbg` inside the target environment (e.g. \"/vsdbg/netcoredbg\")."
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Diagnostics, consumed by this extension: translated into netcoredbg adapter command line flags (flag names from netcoredbg src/main.cpp) and removed from the forwarded configuration. `engine`/`engineLogging` pass --engineLogging (engine and DAP activity shown in Zed's debug console); `enginePath` passes --engineLogging=<path>; `log` passes --log (internal log in a temp file); `logPath` passes --log=<path>. The other vscode-csharp `logging` keys are accepted and ignored; unknown keys are an error. Relative paths resolve against the worktree root (the adapter's working directory); the directory must already exist — netcoredbg does not create it and silently drops the log when the file cannot be opened.",
+      "properties": {
+        "engine": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable engine logging into Zed's debug console (--engineLogging)."
+        },
+        "engineLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "vscode-csharp spelling of `engine`: passes --engineLogging."
+        },
+        "enginePath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Write the engine log to this file instead of the console (--engineLogging=<path>). Implies `engine`. Relative paths resolve against the worktree root (the adapter's working directory); the directory must already exist — netcoredbg does not create it and silently drops the log when the file cannot be opened."
+        },
+        "log": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable netcoredbg's internal log (--log); it is written to <temp dir>/<executable name>.<pid>.log."
+        },
+        "logPath": {
+          "type": "string",
+          "minLength": 1,
+          "not": { "const": "stdout" },
+          "description": "Write netcoredbg's internal log to this file, or \"stderr\" (--log=<path>). Implies `log`. \"stdout\" is rejected because it would corrupt the DAP stream. Relative paths resolve against the worktree root (the adapter's working directory); the directory must already exist — netcoredbg does not create it and silently drops the log when the file cannot be opened."
+        },
+        "exceptions": {
+          "type": "boolean",
+          "description": "vscode-csharp option with no netcoredbg equivalent: accepted and ignored."
+        },
+        "moduleLoad": {
+          "type": "boolean",
+          "description": "vscode-csharp option with no netcoredbg equivalent: accepted and ignored."
+        },
+        "programOutput": {
+          "type": "boolean",
+          "description": "vscode-csharp option with no netcoredbg equivalent: accepted and ignored."
+        },
+        "browserStdOut": {
+          "type": "boolean",
+          "description": "vscode-csharp option with no netcoredbg equivalent: accepted and ignored."
+        },
+        "elapsedTiming": {
+          "type": "boolean",
+          "description": "vscode-csharp option with no netcoredbg equivalent: accepted and ignored."
+        },
+        "threadExit": {
+          "type": "boolean",
+          "description": "vscode-csharp option with no netcoredbg equivalent: accepted and ignored."
+        },
+        "processExit": {
+          "type": "boolean",
+          "description": "vscode-csharp option with no netcoredbg equivalent: accepted and ignored."
+        },
+        "consoleUsageMessage": {
+          "type": "boolean",
+          "description": "vscode-csharp option with no netcoredbg equivalent: accepted and ignored."
+        },
+        "diagnosticsLog": {
+          "type": "object",
+          "description": "vscode-csharp option with no netcoredbg equivalent: accepted and ignored."
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["request", "program"],
+      "properties": {
+        "request": { "const": "launch" },
+        "program": {
+          "type": "string",
+          "description": "Path to the application to debug: an app.dll (framework-dependent) or a self-contained executable.",
+          "minLength": 1
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Command line arguments passed to the program."
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Working directory. Defaults to the project (worktree) root."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Environment variables for the debuggee. DOTNET_ROOT is injected automatically when detectable."
+        },
+        "stopAtEntry": {
+          "type": "boolean",
+          "default": false,
+          "description": "Break immediately after the program launches."
+        },
+        "justMyCode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Only debug user code, skip framework/step-filtering."
+        },
+        "enableStepFiltering": {
+          "type": "boolean",
+          "default": true,
+          "description": "Step over properties and operators (Just My Code stepping)."
+        },
+        "launchSettingsProfile": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Named profile in `launchSettingsFilePath` (defaults to `Properties/launchSettings.json`). Merges `environmentVariables`, `applicationUrl` (`ASPNETCORE_URLS`), `commandLineArgs`, and `workingDirectory` with lower precedence than explicit fields."
+        },
+        "launchSettingsFilePath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Worktree-relative path to `launchSettings.json` (defaults to `Properties/launchSettings.json` when `launchSettingsProfile` is specified). When `launchSettingsProfile` is omitted, selects the first `commandName: \"Project\"` profile."
+        },
+        "envFile": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Worktree-relative path to a dotenv file (`KEY=VALUE` lines, e.g. `.env` or `${ZED_WORKTREE_ROOT}/.env`). Precedence: explicit `env` > `launchSettings` > `envFile` > `DOTNET_ROOT` hint."
+        },
+        "console": { "$ref": "#/definitions/console" },
+        "pipeTransport": { "$ref": "#/definitions/pipeTransport" },
+        "sourceFileMap": { "$ref": "#/definitions/sourceFileMap" },
+        "logging": { "$ref": "#/definitions/logging" }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": ["request", "processId"],
+      "properties": {
+        "request": { "const": "attach" },
+        "processId": {
+          "type": ["integer", "string"],
+          "description": "PID of the dotnet process to attach to (integer, numeric string, or \"${ZED_PICK_PID}\" to pick interactively)."
+        },
+        "console": { "$ref": "#/definitions/console" },
+        "pipeTransport": { "$ref": "#/definitions/pipeTransport" },
+        "sourceFileMap": { "$ref": "#/definitions/sourceFileMap" },
+        "logging": { "$ref": "#/definitions/logging" }
+      },
+      "additionalProperties": true
+    }
+  ]
+}

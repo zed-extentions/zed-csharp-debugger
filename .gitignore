@@ -1,0 +1,6 @@
+/target
+/harness-tests/target
+*.wasm
+.env
+.env.*
+!.env.example

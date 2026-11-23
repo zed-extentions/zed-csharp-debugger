@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional tag name (e.g. v0.1.0) to publish a release when dispatched from a branch"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Unit tests
+        run: cargo test --all
+
+      - name: Schema file present (FR-14)
+        run: test -f debug_adapter_schemas/netcoredbg.json
+
+      - name: Build wasm32-wasip2
+        run: cargo build --target wasm32-wasip2 --release
+
+      - name: Upload extension wasm
+        uses: actions/upload-artifact@v4
+        with:
+          name: csharp_debugger.wasm
+          path: target/wasm32-wasip2/release/csharp_debugger.wasm
+          if-no-files-found: error
+
+  release:
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download extension wasm
+        uses: actions/download-artifact@v4
+        with:
+          name: csharp_debugger.wasm
+          path: dist
+
+      - name: List release assets
+        run: ls -lh dist
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          generate_release_notes: true
+          files: dist/*

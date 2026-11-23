@@ -1,0 +1,21 @@
+[package]
+name = "csharp-debugger"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Zed debug adapter extension for C#/.NET via netcoredbg"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+jsonc-parser = { version = "0.34", default-features = false, features = ["serde"] }
+zed_extension_api = "0.7.0"
+
+[profile.release]
+opt-level = "s"
+lto = true
+
+[lints.rust]
+unsafe_code = "forbid"

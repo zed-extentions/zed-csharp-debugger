@@ -1,0 +1,18 @@
+[
+  {
+    "label": "Launch debug-sample",
+    "adapter": "netcoredbg",
+    "request": "launch",
+    "program": "$ZED_WORKTREE_ROOT/bin/Debug/net9.0/debug-sample.dll",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "stopAtEntry": false
+  },
+  {
+    "label": "Launch debug-sample (stop at entry)",
+    "adapter": "netcoredbg",
+    "request": "launch",
+    "program": "$ZED_WORKTREE_ROOT/bin/Debug/net9.0/debug-sample.dll",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "stopAtEntry": true
+  }
+]
